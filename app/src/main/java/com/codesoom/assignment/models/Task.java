@@ -1,8 +1,17 @@
 package com.codesoom.assignment.models;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 public class Task {
     private Long id;
     private String title;
+
+    public Task(){}
+
+    public Task(Long id, String title) {
+        this.id = id;
+        this.title = title;
+    }
 
     public Long getId() {
         return id;
@@ -16,11 +25,14 @@ public class Task {
         return title;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public Task updateTitle(String title) {
+        return new Task(this.id, title);
     }
 
-    public String toString(){
-        return "Task - title : " + title;
+    @Override
+    public String toString() {
+        return "{" + "\"id\":" + id +
+                ",\"title\":\"" + title + '\"' +
+                '}';
     }
 }
