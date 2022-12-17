@@ -1,12 +1,12 @@
 package com.codesoom.assignment;
 
 import com.codesoom.assignment.controller.TodoHttpController;
-import com.codesoom.assignment.models.HttpStatus;
 import com.codesoom.assignment.models.HttpMethods;
 import com.codesoom.assignment.models.Task;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import org.springframework.http.HttpStatus;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class TodoHttpHandler implements HttpHandler {
     private ObjectMapper objectMapper = new ObjectMapper();
     private final TodoHttpController todoHttpController = new TodoHttpController();
+    private static final int firstIndex = 1;
 
     @Override
     public void handle(HttpExchange exchange) throws IOException, IllegalArgumentException {
@@ -29,18 +30,21 @@ public class TodoHttpHandler implements HttpHandler {
 
             final String requestMethod = exchange.getRequestMethod();
             final String path = exchange.getRequestURI().getPath().substring(1);
-
-            if (HttpMethods.GET.getMethod().equals(requestMethod) && path.contains("tasks")){
-                get(exchange, objectMapper, path, outputStream, responseBody);
-            }
-            if (HttpMethods.POST.getMethod().equals(requestMethod) && path.equals("tasks")) {
-                insert(exchange, objectMapper, requestBody, responseBody);
-            }
-            if ((HttpMethods.PUT.getMethod().equals(requestMethod) || HttpMethods.PATCH.getMethod().equals(requestMethod)) && path.contains("tasks")) {
-                update(exchange, objectMapper, path, outputStream, requestBody, responseBody);
-            }
-            if (HttpMethods.DELETE.getMethod().equals(requestMethod) && path.contains("tasks")) {
-                delete(exchange, objectMapper, path, outputStream);
+            if (path.contains("tasks")){
+                switch(HttpMethods.valueOf(requestMethod)){
+                    case GET:
+                        get(exchange, objectMapper, path, outputStream, responseBody);
+                        break;
+                    case POST:
+                        insert(exchange, objectMapper, requestBody, responseBody);
+                        break;
+                    case PUT: case PATCH:
+                        update(exchange, objectMapper, path, outputStream, requestBody, responseBody);
+                        break;
+                    case DELETE:
+                        delete(exchange, objectMapper, path, outputStream);
+                        break;
+                }
             }
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("GET, POST, PUT, PATCH, DELETE 요청만 가능합니다.");
@@ -50,7 +54,7 @@ public class TodoHttpHandler implements HttpHandler {
     private void validateId(HttpExchange exchange, ObjectMapper objectMapper, OutputStream outputStream, String id) throws IOException {
         if (!todoHttpController.isExist(id)) {
             objectMapper.writeValue(outputStream, Arrays.asList());
-            exchange.sendResponseHeaders(HttpStatus.NOT_FOUND.getCode(), 0);
+            exchange.sendResponseHeaders(HttpStatus.NOT_FOUND.value(), 0);
             return;
         }
     }
@@ -61,10 +65,10 @@ public class TodoHttpHandler implements HttpHandler {
     }
 
     private void get(HttpExchange exchange, ObjectMapper objectMapper, String path, OutputStream outputStream, OutputStream responseBody) throws IOException {
-        int rCode = HttpStatus.OK.getCode();
+        int rCode = HttpStatus.OK.value();
         Object task = null;
         try{
-            String id = path.split("/")[1];
+            String id = path.split("/")[firstIndex];
             validateId(exchange, objectMapper, outputStream, id);
             task = todoHttpController.getTask(id);
         } catch (ArrayIndexOutOfBoundsException e) {
@@ -82,11 +86,11 @@ public class TodoHttpHandler implements HttpHandler {
             return;
         }
         Task inserted = todoHttpController.insert(objectMapper.readValue(content, Task.class));
-        response(exchange, responseBody, inserted, HttpStatus.CREATED.getCode());
+        response(exchange, responseBody, inserted, HttpStatus.CREATED.value());
     }
 
     private void update(HttpExchange exchange, ObjectMapper objectMapper, String path, OutputStream outputStream, InputStream requestBody, OutputStream responseBody) throws IOException {
-        final String id = path.split("/")[1];
+        final String id = path.split("/")[firstIndex];
         final String content = new BufferedReader(new InputStreamReader(requestBody))
                 .lines()
                 .collect(Collectors.joining("\n"));
@@ -96,13 +100,13 @@ public class TodoHttpHandler implements HttpHandler {
         validateId(exchange, objectMapper, outputStream, id);
         Task body = objectMapper.readValue(content, Task.class);
         Task updated = todoHttpController.update(body);
-        response(exchange, responseBody, updated, HttpStatus.OK.getCode());
+        response(exchange, responseBody, updated, HttpStatus.OK.value());
     }
 
     private void delete(HttpExchange exchange, ObjectMapper objectMapper, String path, OutputStream outputStream) throws IOException {
-        final String id = path.split("/")[1];
+        final String id = path.split("/")[firstIndex];
         validateId(exchange, objectMapper, outputStream, id);
         todoHttpController.delete(id);
-        exchange.sendResponseHeaders(HttpStatus.NO_CONTENT.getCode(), 0);
+        exchange.sendResponseHeaders(HttpStatus.NO_CONTENT.value(), 0);
     }
 }
